@@ -18,58 +18,51 @@ extern osMessageQueueId_t myTxQueueHandle;
 extern osSemaphoreId_t myFlagNewStringHandle;
 
 
-
-
-
-
-const uint8_t* readbyte;
-
 /*------------------------private Prototypes-----------------*/
 
 //cmd-string separieren und callbacks aufrufen
 void term_lol_parse(TD_TERMINAL* term);
 
 //funktionsnamen und deren namensstrings mit funktionspointern verknüpfen
-void term_lol_setCallback(	const char* command,const char *help,
+void term_lol_setCallback(	const char* command,
+				const char *help,
 				const char *arg_names,
 				void(*cbf)(int argc,const char **argv));
 
-//aufruf nach jeden neuen byte durch isr o.ä.
-void  term_lol_readbyteString		(osMessageQueueId_t QueueHandle);
-
 //schreibt typedef TD_LINEOBJ in queue
-BaseType_t term_lol_StorLineObj(osMessageQueueId_t QueueHandle, TD_LINEOBJ *line);
-void term_lol_LoadLineObj(osMessageQueueId_t QueueHandle, TD_LINEOBJ *line);
+BaseType_t dBase_StoreQueue(osMessageQueueId_t QueueHandle, TD_LINEOBJ *line);
+
+void dbase_LoadQueue( osMessageQueueId_t QueueHandle, TD_LINEOBJ *line);
 
 /*___________________________________________________________*/
 /*--------------------end private Prototypes-----------------*/
 /*-----------------------------------------------------------*/
 
-BaseType_t term_lol_StorLineObj(osMessageQueueId_t QueueHandle, TD_LINEOBJ *line)
+BaseType_t dBase_StoreQueue( osMessageQueueId_t QueueHandle, TD_LINEOBJ *line)
     {
     return xQueueSend(QueueHandle, line, 10);
     }
 /*___________________________________________________________*/
-void term_lol_LoadLineObj(osMessageQueueId_t QueueHandle, TD_LINEOBJ *line)
+void dbase_LoadQueue( osMessageQueueId_t QueueHandle, TD_LINEOBJ *line)
     {
     xQueueReceive(QueueHandle, line,  ( portTickType ) 10);
     }
 /*-----------------------------------------------------------*/
-void qprintf(osMessageQueueId_t QueueHandle, char *fmt, ...)
+void qprintf (osMessageQueueId_t QueueHandle, char *fmt, ...)
     {
 	int ItemsLeft = uxQueueSpacesAvailable(QueueHandle);
 
 	BaseType_t xStatus;
 
-	if (ItemsLeft)
+	if ( ItemsLeft)
 	    {
 	    va_list argp;
-	   va_start(argp, fmt);
-	   uint8_t pbuffer[UART_PRINTBUFFER];
+	   va_start( argp, fmt);
+	   uint8_t pbuffer[ UART_PRINTBUFFER];
 	   int bytesWrote = 0;
 
 
-	   bytesWrote = vsnprintf(pbuffer, UART_PRINTBUFFER, fmt, argp);
+	   bytesWrote = vsnprintf( pbuffer, UART_PRINTBUFFER, fmt, argp);
 
 	   va_end(argp);
 
@@ -78,13 +71,14 @@ void qprintf(osMessageQueueId_t QueueHandle, char *fmt, ...)
 
 	    for (int var = 0; var < bytesWrote; ++var)
 		{
-		xStatus = xQueueSendToBack(QueueHandle, &pbuffer[var], 0);
+		xStatus = xQueueSendToBack( QueueHandle, &pbuffer[var], 0);
 		}
 
 	    }
 	else
 	    {
 	    xQueueReset(QueueHandle);
+
 	    xStatus = xQueueSendToBack(QueueHandle, "F", 0);
 
 	    }
@@ -135,7 +129,6 @@ void term_makeLineObj(TD_LINEOBJ *line,
     bytesWrote = snprintf(pbuffer, UART_PRINTBUFFER, postfix);
     strcpy(line->postfix, pbuffer);
     }
-
 /*-----------------------------------------------------------*/
 void term_vprintLineObj(osMessageQueueId_t QueueHandle,TD_LINEOBJ *line)
     {
@@ -156,7 +149,9 @@ void term_lol_sendQueue(osMessageQueueId_t QueueHandle)
 	    {
 	    //should receive from front
 	    uint8_t lReceivedValue;
+
 	    xQueueReceive(QueueHandle, &lReceivedValue, 0);
+
 	    dmaBuff[var] = lReceivedValue;
 	    }
 	//transmission time[s]: 10 bit / n baud
@@ -166,7 +161,7 @@ void term_lol_sendQueue(osMessageQueueId_t QueueHandle)
 	uint32_t transmission_time= 10 * ItemsLeft * 1000 / huart1.Init.BaudRate;
 
 	osDelay(transmission_time+1);
-	//HAL_UART_Transmit(&huart1, dmaBuff, ItemsLeft,199);
+
 	}
     }
 /*-----------------------------------------------------------*/
@@ -175,23 +170,19 @@ void term_lol_readbyteString(osMessageQueueId_t QueueHandle)
     //wait no time because of isr context
    // xQueueSendToBackFromISR(QueueHandle, &btTerm.byte_received, 0);
 
-    HAL_UART_Receive_DMA(&huart1, (uint8_t*) &btTerm.byte_received, 1);
+   // HAL_UART_Receive_DMA(&huart1, (uint8_t*) &readbyte, 1);
     }
 /*-----------------------------------------------------------*/
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
     {
     uint8_t byte_received = huart->Instance->DR;
 
-
     xQueueSendToBackFromISR(myRxQueueHandle, &byte_received, 0);
 
     if (byte_received == (uint8_t)13)
-	{
 	xSemaphoreGiveFromISR(myFlagNewStringHandle, 0);
-	}
 
-  //  btTerm.flag_newTransmission = 0;
-    term_lol_readbyteString(&myRxQueueHandle);
+    HAL_UART_Receive_DMA(&huart1, (uint8_t*) &readbyte, 1);
     }
 
 

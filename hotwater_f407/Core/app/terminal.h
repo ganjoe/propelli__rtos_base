@@ -36,7 +36,7 @@ void qprintf(osMessageQueueId_t QueueHandle, char *fmt, ...);
 //prints out formatted string
 void term_vprintLineObj(osMessageQueueId_t QueueHandle, TD_LINEOBJ *line);
 
-BaseType_t term_lol_StorLineObj(osMessageQueueId_t QueueHandle, TD_LINEOBJ *line);
+BaseType_t dBase_StoreQueue(osMessageQueueId_t QueueHandle, TD_LINEOBJ *line);
 
 void term_makeLineObj(TD_LINEOBJ *line,
 			char* filename,
