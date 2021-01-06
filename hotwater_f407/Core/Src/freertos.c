@@ -28,6 +28,7 @@
 /* USER CODE BEGIN Includes */
 #include "terminal.h"
 #include "queue.h"
+#include "semphr.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -78,6 +79,20 @@ const osThreadAttr_t myCmdTask_attributes = {
   .priority = (osPriority_t) osPriorityLow,
   .stack_size = 128 * 4
 };
+/* Definitions for myLogUartTask */
+osThreadId_t myLogUartTaskHandle;
+const osThreadAttr_t myLogUartTask_attributes = {
+  .name = "myLogUartTask",
+  .priority = (osPriority_t) osPriorityLow,
+  .stack_size = 128 * 4
+};
+/* Definitions for myLogSdTask */
+osThreadId_t myLogSdTaskHandle;
+const osThreadAttr_t myLogSdTask_attributes = {
+  .name = "myLogSdTask",
+  .priority = (osPriority_t) osPriorityLow,
+  .stack_size = 128 * 4
+};
 /* Definitions for myTxQueue */
 osMessageQueueId_t myTxQueueHandle;
 uint8_t myTxQueueBuffer[ 64 * sizeof( uint8_t ) ];
@@ -105,6 +120,31 @@ const osMessageQueueAttr_t myLineObjQueue_attributes = {
   .mq_mem = &myLineObjQueueBuffer,
   .mq_size = sizeof(myLineObjQueueBuffer)
 };
+/* Definitions for myCmdLineObjQueue */
+osMessageQueueId_t myCmdLineObjQueueHandle;
+const osMessageQueueAttr_t myCmdLineObjQueue_attributes = {
+  .name = "myCmdLineObjQueue"
+};
+/* Definitions for myLogLineObjQueue */
+osMessageQueueId_t myLogLineObjQueueHandle;
+const osMessageQueueAttr_t myLogLineObjQueue_attributes = {
+  .name = "myLogLineObjQueue"
+};
+/* Definitions for myFlagNewString */
+osSemaphoreId_t myFlagNewStringHandle;
+const osSemaphoreAttr_t myFlagNewString_attributes = {
+  .name = "myFlagNewString"
+};
+/* Definitions for myCountNewString */
+osSemaphoreId_t myCountNewStringHandle;
+const osSemaphoreAttr_t myCountNewString_attributes = {
+  .name = "myCountNewString"
+};
+/* Definitions for myCountNewCmd */
+osSemaphoreId_t myCountNewCmdHandle;
+const osSemaphoreAttr_t myCountNewCmd_attributes = {
+  .name = "myCountNewCmd"
+};
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
@@ -115,6 +155,8 @@ void StartDefaultTask(void *argument);
 void StartRxTask(void *argument);
 void StartTxTask(void *argument);
 void StartCmdTask(void *argument);
+void StartLogUartTask(void *argument);
+void StartLogSdTask(void *argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -211,6 +253,16 @@ void MX_FREERTOS_Init(void) {
     /* add mutexes, ... */
   /* USER CODE END RTOS_MUTEX */
 
+  /* Create the semaphores(s) */
+  /* creation of myFlagNewString */
+  myFlagNewStringHandle = osSemaphoreNew(1, 1, &myFlagNewString_attributes);
+
+  /* creation of myCountNewString */
+  myCountNewStringHandle = osSemaphoreNew(16, 16, &myCountNewString_attributes);
+
+  /* creation of myCountNewCmd */
+  myCountNewCmdHandle = osSemaphoreNew(16, 16, &myCountNewCmd_attributes);
+
   /* USER CODE BEGIN RTOS_SEMAPHORES */
     /* add semaphores, ... */
   /* USER CODE END RTOS_SEMAPHORES */
@@ -224,10 +276,16 @@ void MX_FREERTOS_Init(void) {
   myTxQueueHandle = osMessageQueueNew (64, sizeof(uint8_t), &myTxQueue_attributes);
 
   /* creation of myRxQueue */
-  myRxQueueHandle = osMessageQueueNew (16, sizeof(uint8_t), &myRxQueue_attributes);
+  myRxQueueHandle = osMessageQueueNew (1024, sizeof(uint8_t), &myRxQueue_attributes);
 
   /* creation of myLineObjQueue */
   myLineObjQueueHandle = osMessageQueueNew (16, 64, &myLineObjQueue_attributes);
+
+  /* creation of myCmdLineObjQueue */
+  myCmdLineObjQueueHandle = osMessageQueueNew (16, 64, &myCmdLineObjQueue_attributes);
+
+  /* creation of myLogLineObjQueue */
+  myLogLineObjQueueHandle = osMessageQueueNew (16, 64, &myLogLineObjQueue_attributes);
 
   /* USER CODE BEGIN RTOS_QUEUES */
     /* add queues, ... */
@@ -245,6 +303,12 @@ void MX_FREERTOS_Init(void) {
 
   /* creation of myCmdTask */
   myCmdTaskHandle = osThreadNew(StartCmdTask, NULL, &myCmdTask_attributes);
+
+  /* creation of myLogUartTask */
+  myLogUartTaskHandle = osThreadNew(StartLogUartTask, NULL, &myLogUartTask_attributes);
+
+  /* creation of myLogSdTask */
+  myLogSdTaskHandle = osThreadNew(StartLogSdTask, NULL, &myLogSdTask_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
     /* add threads, ... */
@@ -266,10 +330,13 @@ void MX_FREERTOS_Init(void) {
 void StartDefaultTask(void *argument)
 {
   /* USER CODE BEGIN StartDefaultTask */
-    /* Infinite loop */
+    /* Infinite loop*/
     for (;;)
 	{
+//	qprintf(myTxQueueHandle, "asdf");
 	osDelay(100);
+/*
+ *
 	int tdsize = sizeof(TD_LINEOBJ);
 	TD_LINEOBJ oneline;
 	TD_LINEOBJ loadline;
@@ -282,9 +349,9 @@ void StartDefaultTask(void *argument)
 	term_lol_LoadLineObj(myLineObjQueueHandle, &loadline);//xQueueReceive(myLineObjQueueHandle, &loadline,  ( portTickType ) 10);
 
 	term_vprintLineObj(myTxQueueHandle, &loadline);
+ */
 
-
-//	qprintf(myTxQueueHandle, "asdf");
+//
 
 
 	}
@@ -301,16 +368,45 @@ void StartDefaultTask(void *argument)
 void StartRxTask(void *argument)
 {
   /* USER CODE BEGIN StartRxTask */
+    const TickType_t xMaxExpectedBlockTime = pdMS_TO_TICKS( 500 );
+    BaseType_t xStatus;
     /* Infinite loop */
     for (;;)
 	{
-	osDelay(100);
-	//term_lol_readbyte(&btTerm);
-	if (!btTerm.flag_newTransmission)
+	if( xSemaphoreTake( myFlagNewStringHandle, 0)==pdPASS)
+	    {
+	    TD_LINEOBJ lobj;
+
+
+	    int ItemsLeft = uxQueueMessagesWaiting(myRxQueueHandle);
+
+	    if (ItemsLeft)
+		{
+		for (int var = 0; var < ItemsLeft; ++var)
+		    {
+		    uint8_t pvBuffer=0;
+		    xQueueReceive(myRxQueueHandle, &pvBuffer, 0);
+		    lobj.string[var] = pvBuffer;
+		    }
+		    xStatus = term_lol_StorLineObj(myCmdLineObjQueueHandle, &lobj);
+
+		if (xStatus == pdPASS)
+		    {
+		    xSemaphoreGive(myCountNewCmdHandle);
+		    }
+		}
+
+	    }
+	else
 	    {
 	    HAL_UART_Receive_DMA(&huart1, (uint8_t*) &btTerm.byte_received, 1);
-	    btTerm.flag_newTransmission = 1;
 	    }
+	//term_lol_readbyte(&btTerm);
+	//if (!btTerm.flag_newTransmission)
+	//    {
+	//    HAL_UART_Receive_DMA(&huart1, (uint8_t*) &btTerm.byte_received, 1);
+	//    btTerm.flag_newTransmission = 1;
+	//    }
 
 	}
     //osDelay(1);
@@ -327,6 +423,7 @@ void StartRxTask(void *argument)
 void StartTxTask(void *argument)
 {
   /* USER CODE BEGIN StartTxTask */
+
     /* Infinite loop */
     for (;;)
 	{
@@ -347,18 +444,55 @@ void StartTxTask(void *argument)
 void StartCmdTask(void *argument)
 {
   /* USER CODE BEGIN StartCmdTask */
+    BaseType_t xStatus;
     /* Infinite loop */
     for (;;)
 	{
-	if (btTerm.flag_newString)
+	if( xSemaphoreTake( myCountNewCmdHandle, 0)==pdPASS)
 	    {
-	    //term_lol_parse(&btTerm);
-	    btTerm.flag_newString = 0;
+	    TD_LINEOBJ line;
+	    term_lol_LoadLineObj(myCmdLineObjQueueHandle, &line);
+	    qprintf(myTxQueueHandle, "asdf");
+	   // term_vprintLineObj(myTxQueueHandle, &line);
 	    }
-
-	osDelay(1);
 	}
   /* USER CODE END StartCmdTask */
+}
+
+/* USER CODE BEGIN Header_StartLogUartTask */
+/**
+* @brief Function implementing the myLogUartTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartLogUartTask */
+void StartLogUartTask(void *argument)
+{
+  /* USER CODE BEGIN StartLogUartTask */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END StartLogUartTask */
+}
+
+/* USER CODE BEGIN Header_StartLogSdTask */
+/**
+* @brief Function implementing the myLogSdTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartLogSdTask */
+void StartLogSdTask(void *argument)
+{
+  /* USER CODE BEGIN StartLogSdTask */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END StartLogSdTask */
 }
 
 /* Private application code --------------------------------------------------*/

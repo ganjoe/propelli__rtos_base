@@ -4,18 +4,23 @@
  *  Created on: Jan 2, 2021
  *      Author: danie
  */
-
+#include "FreeRTOS.h"
 #include "../terminal.h"
 #include "../utils.h"
 #include "usart.h"
-#include "FreeRTOS.h"
-#include "queue.h"
 #include "cmsis_os2.h"
 #include "string.h"
 
 extern osMessageQueueId_t myRxQueueHandle;
 
 extern osMessageQueueId_t myTxQueueHandle;
+
+extern osSemaphoreId_t myFlagNewStringHandle;
+
+
+
+
+
 
 const uint8_t* readbyte;
 
@@ -33,16 +38,16 @@ void term_lol_setCallback(	const char* command,const char *help,
 void  term_lol_readbyteString		(osMessageQueueId_t QueueHandle);
 
 //schreibt typedef TD_LINEOBJ in queue
-void term_lol_StorLineObj(osMessageQueueId_t QueueHandle, TD_LINEOBJ *line);
+BaseType_t term_lol_StorLineObj(osMessageQueueId_t QueueHandle, TD_LINEOBJ *line);
 void term_lol_LoadLineObj(osMessageQueueId_t QueueHandle, TD_LINEOBJ *line);
 
 /*___________________________________________________________*/
 /*--------------------end private Prototypes-----------------*/
 /*-----------------------------------------------------------*/
 
-void term_lol_StorLineObj(osMessageQueueId_t QueueHandle, TD_LINEOBJ *line)
+BaseType_t term_lol_StorLineObj(osMessageQueueId_t QueueHandle, TD_LINEOBJ *line)
     {
-    xQueueSend(QueueHandle, line, 10);
+    return xQueueSend(QueueHandle, line, 10);
     }
 /*___________________________________________________________*/
 void term_lol_LoadLineObj(osMessageQueueId_t QueueHandle, TD_LINEOBJ *line)
@@ -61,7 +66,7 @@ void qprintf(osMessageQueueId_t QueueHandle, char *fmt, ...)
 	    va_list argp;
 	   va_start(argp, fmt);
 	   uint8_t pbuffer[UART_PRINTBUFFER];
-	   int bytesWrote = -1;
+	   int bytesWrote = 0;
 
 
 	   bytesWrote = vsnprintf(pbuffer, UART_PRINTBUFFER, fmt, argp);
@@ -168,14 +173,24 @@ void term_lol_sendQueue(osMessageQueueId_t QueueHandle)
 void term_lol_readbyteString(osMessageQueueId_t QueueHandle)
     {
     //wait no time because of isr context
-    xQueueSendToBackFromISR(myRxQueueHandle, &btTerm.byte_received, 0);
+   // xQueueSendToBackFromISR(QueueHandle, &btTerm.byte_received, 0);
 
     HAL_UART_Receive_DMA(&huart1, (uint8_t*) &btTerm.byte_received, 1);
     }
 /*-----------------------------------------------------------*/
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
     {
-    btTerm.flag_newTransmission = 0;
+    uint8_t byte_received = huart->Instance->DR;
+
+
+    xQueueSendToBackFromISR(myRxQueueHandle, &byte_received, 0);
+
+    if (byte_received == (uint8_t)13)
+	{
+	xSemaphoreGiveFromISR(myFlagNewStringHandle, 0);
+	}
+
+  //  btTerm.flag_newTransmission = 0;
     term_lol_readbyteString(&myRxQueueHandle);
     }
 
