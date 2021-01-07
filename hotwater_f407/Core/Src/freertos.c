@@ -29,6 +29,7 @@
 #include "terminal.h"
 #include "queue.h"
 #include "semphr.h"
+#include "string.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -428,7 +429,7 @@ void StartDefaultTask(void *argument)
 void StartRxTask( void *argument)
 {
   /* USER CODE BEGIN StartRxTask */
-    const TickType_t xMaxExpectedBlockTime = pdMS_TO_TICKS( 500 );
+
     BaseType_t xStatus;
     /* Infinite loop */
     for (;;)
@@ -440,16 +441,26 @@ void StartRxTask( void *argument)
 	    if (ItemsLeft)
 		{
 		TD_LINEOBJ lobj;
+		char rxbuff[ ItemsLeft];
+
+		memset(rxbuff,'\0',ItemsLeft);
 
 		for (int var = 0; var < ItemsLeft; ++var)
 		    {
 		    uint8_t pvBuffer=0;
+
 		    xQueueReceive( myRxQueueHandle, &pvBuffer, 0);
-		    lobj.string[ var ] = pvBuffer;
+
+		    rxbuff[ var ] = pvBuffer;
+
 		    }
-		strncpy(lobj.filename, "cmd", 4);
+		rxbuff[ ItemsLeft-1 ] = '\0';
+
+
+		dbase_Make( &lobj, strdup("cmd"), strdup(rxbuff), 0, 0, 0, 0);
 
 		xStatus = dBase_StoreQueue( myCmdLineObjQueueHandle, &lobj );
+
 		xSemaphoreGive(myCountNewCmdHandle);
 
 		}
@@ -492,17 +503,20 @@ void StartTxTask(void *argument)
 void StartCmdTask(void *argument)
 {
   /* USER CODE BEGIN StartCmdTask */
-    BaseType_t xStatus;
+
     /* Infinite loop */
     for (;;)
 	{
 	if( xSemaphoreTake( myCountNewCmdHandle, 0)==pdPASS)
 	    {
 	    TD_LINEOBJ line;
+
 	    dbase_LoadQueue(myCmdLineObjQueueHandle, &line);
-	   // qprintf(myTxQueueHandle, "asdf");
+
+	    term_qPrintf(myTxQueueHandle, "\r<%s/%s> %s [%s]", line.filename, line.header, line.string, line.postfix);
+
 	    osDelay(1);
-	    //term_vprintLineObj(myTxQueueHandle, &line);
+
 	    }
 	}
   /* USER CODE END StartCmdTask */

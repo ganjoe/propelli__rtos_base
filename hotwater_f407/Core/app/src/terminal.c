@@ -11,48 +11,49 @@
 #include "cmsis_os2.h"
 #include "string.h"
 
+/*--------private exportet prototypes---------*/
+
 extern osMessageQueueId_t myRxQueueHandle;
 
 extern osMessageQueueId_t myTxQueueHandle;
 
 extern osSemaphoreId_t myFlagNewStringHandle;
 
+extern void term_lol_parse(TD_LINEOBJ *line);
 
-/*___________________________________________________________*/
-/*--------------------------private Prototypes---------------*/
-/*-----------------------------------------------------------*/
 
-//cmd-string separieren und callbacks aufrufen
-void term_lol_parse(TD_TERMINAL* term);
+/*-------private local prototypes-------------*/
 
-//funktionsnamen und deren namensstrings mit funktionspointern verknüpfen
-void term_lol_setCallback(	const char* command,
-				const char *help,
-				const char *arg_names,
-				void(*cbf)(int argc,const char **argv));
+void
+term_lol_setCallback	(const char* command,
+			const char *help,
+			const char *arg_names,
+			void(*cbf)(int argc,const char **argv));
 
-//schreibt typedef TD_LINEOBJ in queue
-BaseType_t dBase_StoreQueue(osMessageQueueId_t QueueHandle, TD_LINEOBJ *line);
-
-void dbase_LoadQueue	( osMessageQueueId_t QueueHandle, TD_LINEOBJ *line);
-
-/*___________________________________________________________*/
-/*--------------------Implementation-------------------------*/
-/*-----------------------------------------------------------*/
 BaseType_t
-    dBase_StoreQueue	( osMessageQueueId_t QueueHandle, TD_LINEOBJ *line)
+dBase_StoreQueue	(osMessageQueueId_t QueueHandle,
+			TD_LINEOBJ *line);
+
+
+/*----------private local code----------------*/
+BaseType_t
+    dBase_StoreQueue
+			(osMessageQueueId_t QueueHandle,
+			TD_LINEOBJ *line)
     {
     return xQueueSend(QueueHandle, line, 10);
     }
 /*___________________________________________________________*/
 void
-    dbase_LoadQueue	( osMessageQueueId_t QueueHandle, TD_LINEOBJ *line)
+    dbase_LoadQueue
+			(osMessageQueueId_t QueueHandle,
+			TD_LINEOBJ *line)
     {
     xQueueReceive(QueueHandle, line,  ( portTickType ) 10);
     }
 /*-----------------------------------------------------------*/
 void
-    qprintf 		(osMessageQueueId_t QueueHandle, char *fmt, ...)
+    term_qPrintf 		(osMessageQueueId_t QueueHandle, char *fmt, ...)
 	{
 	int ItemsLeft = uxQueueSpacesAvailable(QueueHandle);
 
@@ -88,9 +89,9 @@ void
        }
 /*-----------------------------------------------------------*/
 void
-    term_makeLineObj	(TD_LINEOBJ *line,
+    dbase_Make	(TD_LINEOBJ *line,
 			char* filename,
-			char* string,
+			const char* string,
 			char* header,
 			char* postfix,
 			uint16_t linenr,
@@ -98,44 +99,44 @@ void
 			... )
     {
     char pbuffer[TD_LINEOBJ_MAX_SSIZE];
+
     int bytesWrote;
 
     if (fmt == 0)
 	{
-	bytesWrote = snprintf(pbuffer, UART_PRINTBUFFER, string);
-	strcpy(line->string, pbuffer);
+	   bytesWrote = snprintf( pbuffer, TD_LINEOBJ_MAX_SSIZE, string);
+	   strcpy( line->string, pbuffer);
+
+
 	}
     else
 	{
-
-	memset(pbuffer,1,TD_LINEOBJ_MAX_SSIZE);
+	memset	( pbuffer, 1, TD_LINEOBJ_MAX_SSIZE);
 
 	va_list argp;
-	va_start(argp, fmt);
-	bytesWrote = vsnprintf(pbuffer, UART_PRINTBUFFER, fmt, argp);
-	strcpy(line->string, pbuffer);
-	va_end(argp);
+	va_start( argp, fmt );
+	bytesWrote = vsnprintf( pbuffer, UART_PRINTBUFFER, fmt, argp );
+	strcpy( line->string, pbuffer );
+	va_end( argp );
 	}
 
     line->linenr = linenr;
 
-    bytesWrote = snprintf(pbuffer, UART_PRINTBUFFER, filename);
-    strcpy(line->filename, pbuffer);
+    bytesWrote = snprintf( pbuffer, UART_PRINTBUFFER, filename);
+    strcpy( line->filename, pbuffer);
 
     bytesWrote = snprintf(pbuffer, UART_PRINTBUFFER, header);
-    strcpy(line->header, pbuffer);
+    strcpy( line->header, pbuffer);
 
     bytesWrote = snprintf(pbuffer, UART_PRINTBUFFER, postfix);
-    strcpy(line->postfix, pbuffer);
+    strcpy( line->postfix, pbuffer);
 
-    bytesWrote = snprintf(pbuffer, UART_PRINTBUFFER, postfix);
-    strcpy(line->postfix, pbuffer);
     }
 /*-----------------------------------------------------------*/
 void
     term_vprintLineObj	(osMessageQueueId_t QueueHandle,TD_LINEOBJ *line)
     {
-    qprintf(QueueHandle, "\r<%s/%s> %s [%s]", line->filename, line->header, line->string, line->postfix);
+    term_qPrintf(QueueHandle, "\r<%s/%s> %s [%s]", line->filename, line->header, line->string, line->postfix);
     }
 /*-----------------------------------------------------------*/
 void
