@@ -92,7 +92,7 @@ const osThreadAttr_t myTxTask_attributes = {
 };
 /* Definitions for myCmdTask */
 osThreadId_t myCmdTaskHandle;
-uint32_t myCmdTaskBuffer[ 128 ];
+uint32_t myCmdTaskBuffer[ 512 ];
 osStaticThreadDef_t myCmdTaskControlBlock;
 const osThreadAttr_t myCmdTask_attributes = {
   .name = "myCmdTask",
@@ -426,7 +426,7 @@ void StartDefaultTask(void *argument)
  * @retval None
  */
 /* USER CODE END Header_StartRxTask */
-void StartRxTask( void *argument)
+void StartRxTask(void *argument)
 {
   /* USER CODE BEGIN StartRxTask */
 
@@ -507,17 +507,17 @@ void StartCmdTask(void *argument)
     /* Infinite loop */
     for (;;)
 	{
-	if( xSemaphoreTake( myCountNewCmdHandle, 0)==pdPASS)
+	if( xSemaphoreTake( myCountNewCmdHandle, 60000)==pdPASS)
 	    {
 	    TD_LINEOBJ line;
 
 	    dbase_LoadQueue(myCmdLineObjQueueHandle, &line);
-
-	    term_qPrintf(myTxQueueHandle, "\r<%s/%s> %s [%s]", line.filename, line.header, line.string, line.postfix);
+	    term_qPrintf(myTxQueueHandle, "\r<%s\parse:> %s]", line.filename, line.string);
+	   // term_qPrintf(myTxQueueHandle, "\r<%s/%s> %s [%s]", line.filename, line.header, line.string, line.postfix);
 
 	    term_lol_parse(&line);
 
-	    osDelay(1);
+
 
 	    }
 	}

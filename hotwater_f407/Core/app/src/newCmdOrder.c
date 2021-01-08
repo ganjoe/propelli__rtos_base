@@ -150,11 +150,11 @@ void settime(int argc, const char **argv)
     	wparam = utils_truncate_number_int(&s, 0, 59);
     	if (wparam)
     	    {
-    	    term_qPrintf(&myTxQueueHandle, "[cmd settime][Fehler] Range ist 23 59 59\r");
+    	    //term_qPrintf(&myTxQueueHandle, "[cmd settime][Fehler] Range ist 23 59 59\r");
     	    }
     	else
 	    {
-    	    term_qPrintf(&myTxQueueHandle,  "[cmd settime] ok\r");
+    	    term_qPrintf(myTxQueueHandle,  "\[parse ok]\r");
 	     time.Hours = h;
 	     time.Minutes = m;
 	     time.Seconds = s;
@@ -166,7 +166,10 @@ void settime(int argc, const char **argv)
 	    }
 	}
 	else
-	    term_qPrintf(&myTxQueueHandle, "\r3 argumente DD MM YY\r");
+	    {
+	      term_qPrintf(myTxQueueHandle, "\rwrong! arguments are DD MM YY. YY>=20\r");
+	    }
+
     }
 /*--------------------------*/
 void setdate(int argc, const char **argv)

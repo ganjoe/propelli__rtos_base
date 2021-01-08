@@ -23,7 +23,7 @@
 #define UART_PRINTBUFFER 	32
 
 //bytes send to uart every taskloop
-#define TX_BYTES_AT_ONCE	8
+#define TX_BYTES_AT_ONCE	64
 
 //HAL USART HANDLE
 #define HUART &huart1
