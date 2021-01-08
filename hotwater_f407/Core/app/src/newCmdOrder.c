@@ -12,6 +12,10 @@
 #include "../terminal.h"
 #include "string.h"
 #include "../datatypes.h"
+#include "rtc.h"
+
+    RTC_TimeTypeDef time;
+    RTC_DateTypeDef date;
 
 extern osMessageQueueId_t myTxQueueHandle;
 
@@ -62,6 +66,8 @@ void term_lol_setCallback(const char *command, const char *help,
 void cmd_init_callbacks()
     {
     term_lol_setCallback("reset", "mcu reset", "countdown", reset);
+    term_lol_setCallback("settime", "mcu reset", "countdown", settime);
+    term_lol_setCallback("setdate", "mcu reset", "countdown", setdate);
     }
 /*--------------------------*/
 void term_lol_parse(TD_LINEOBJ *line)
@@ -127,3 +133,73 @@ void reset(int argc, const char **argv)
 	}
     }
 /*--------------------------*/
+void settime(int argc, const char **argv)
+    {
+
+    int h = -1;	//
+    int m = -1;	//
+    int s = -1;	//
+    if (argc == 4)
+	{
+    	sscanf(argv[1], "%d", &h);
+    	sscanf(argv[2], "%d", &m);
+    	sscanf(argv[3], "%d", &s);
+    	int wparam=0;
+    	wparam = utils_truncate_number_int(&h, 0, 23);
+    	wparam = utils_truncate_number_int(&m, 0, 59);
+    	wparam = utils_truncate_number_int(&s, 0, 59);
+    	if (wparam)
+    	    {
+    	    term_qPrintf(&myTxQueueHandle, "[cmd settime][Fehler] Range ist 23 59 59\r");
+    	    }
+    	else
+	    {
+    	    term_qPrintf(&myTxQueueHandle,  "[cmd settime] ok\r");
+	     time.Hours = h;
+	     time.Minutes = m;
+	     time.Seconds = s;
+	     time.DayLightSaving = RTC_DAYLIGHTSAVING_NONE;
+	     time.StoreOperation = RTC_STOREOPERATION_RESET;
+
+	    HAL_RTC_SetTime(&hrtc, &time, RTC_FORMAT_BIN);
+	    HAL_RTC_SetDate(&hrtc, &date, RTC_FORMAT_BIN);
+	    }
+	}
+	else
+	    term_qPrintf(&myTxQueueHandle, "\r3 argumente DD MM YY\r");
+    }
+/*--------------------------*/
+void setdate(int argc, const char **argv)
+    {
+    int d = -1;	//
+    int m = -1;	//
+    int y = -1;	//
+    if (argc == 4)
+	{
+    	int wparam;
+    	sscanf(argv[1], "%d", &d);
+    	sscanf(argv[2], "%d", &m);
+    	sscanf(argv[3], "%d", &y);
+    	wparam = utils_truncate_number_int(&d, 0, 32);
+    	wparam = utils_truncate_number_int(&m, 0, 12);
+    	wparam = utils_truncate_number_int(&y, 20, 65);
+    	if (wparam)
+    	    {
+    	    term_qPrintf(&myTxQueueHandle, "\rrange ist 32 12 65\r");
+    	    }
+    	else
+    	    {
+    	    date.Month = m;
+    	    date.Date = d;
+    	    date.Year = y;
+    	    date.WeekDay = RTC_WEEKDAY_SUNDAY;
+    	    HAL_RTC_SetTime(&hrtc, &time, RTC_FORMAT_BIN);
+    	    HAL_RTC_SetDate(&hrtc, &date, RTC_FORMAT_BIN);
+    	    term_qPrintf(&myTxQueueHandle, "[cmd setdate] ok\r");
+    	    }
+	}
+    else
+	{
+	term_qPrintf(&myTxQueueHandle, "\r3 argumente DD MM YY\r");
+	}
+    }

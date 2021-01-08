@@ -53,7 +53,7 @@ void
     }
 /*-----------------------------------------------------------*/
 void
-    term_qPrintf 		(osMessageQueueId_t QueueHandle, char *fmt, ...)
+    term_qPrintf 	(osMessageQueueId_t QueueHandle, char *fmt, ...)
 	{
 	int ItemsLeft = uxQueueSpacesAvailable(QueueHandle);
 
@@ -89,7 +89,7 @@ void
        }
 /*-----------------------------------------------------------*/
 void
-    dbase_Make	(TD_LINEOBJ *line,
+    dbase_Make		(TD_LINEOBJ *line,
 			char* filename,
 			const char* string,
 			char* header,

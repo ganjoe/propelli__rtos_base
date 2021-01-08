@@ -515,6 +515,8 @@ void StartCmdTask(void *argument)
 
 	    term_qPrintf(myTxQueueHandle, "\r<%s/%s> %s [%s]", line.filename, line.header, line.string, line.postfix);
 
+	    term_lol_parse(&line);
+
 	    osDelay(1);
 
 	    }
