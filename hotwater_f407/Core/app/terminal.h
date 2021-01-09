@@ -12,6 +12,8 @@
 #include "main.h"
 #include "usart.h"
 #include "datatypes.h"
+#include "queue.h"
+#include "semphr.h"
 
 /*-----------------------------------------------------------*/
 //size for static td - do not change
@@ -21,23 +23,22 @@
 #define UART_PRINTBUFFER 	32
 
 //bytes send to uart every taskloop
-#define TX_BYTES_AT_ONCE	8
+#define TX_BYTES_AT_ONCE	64
 
 //HAL USART HANDLE
 #define HUART &huart1
 /*-----------------------------------------------------------*/
 /*-----------------------------------------------------------*/
+void dbase_LoadQueue ( osMessageQueueId_t QueueHandle, TD_LINEOBJ *line);
 
 //wrapper for vsnprintf. prints to queue
-void qprintf(osMessageQueueId_t QueueHandle, char *fmt, ...);
+void term_qPrintf(osMessageQueueId_t QueueHandle, char *fmt, ...);
 
-//prints out formatted string
-void term_vprintLineObj(osMessageQueueId_t QueueHandle, TD_LINEOBJ *line);
+BaseType_t dBase_StoreQueue(osMessageQueueId_t QueueHandle, TD_LINEOBJ *line);
 
-
-void term_makeLineObj(TD_LINEOBJ *line,
+void dbase_Make(TD_LINEOBJ *line,
 			char* filename,
-			char* string,
+			const char* string,
 			char* header,
 			char* postfix,
 			uint16_t linenr,

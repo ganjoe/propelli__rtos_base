@@ -38,7 +38,7 @@ extern "C" {
 
 /* Exported types ------------------------------------------------------------*/
 /* USER CODE BEGIN ET */
-
+const uint8_t* readbyte;
 /* USER CODE END ET */
 
 /* Exported constants --------------------------------------------------------*/
