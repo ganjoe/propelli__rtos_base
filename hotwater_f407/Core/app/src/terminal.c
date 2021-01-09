@@ -10,6 +10,7 @@
 #include "usart.h"
 #include "cmsis_os2.h"
 #include "string.h"
+#include "rtc.h"
 
 /*--------private exportet prototypes---------*/
 
@@ -22,19 +23,6 @@ extern osSemaphoreId_t myFlagNewStringHandle;
 extern void term_lol_parse(TD_LINEOBJ *line);
 
 
-/*-------private local prototypes-------------*/
-
-void
-term_lol_setCallback	(const char* command,
-			const char *help,
-			const char *arg_names,
-			void(*cbf)(int argc,const char **argv));
-
-BaseType_t
-dBase_StoreQueue	(osMessageQueueId_t QueueHandle,
-			TD_LINEOBJ *line);
-
-
 /*----------private local code----------------*/
 BaseType_t
     dBase_StoreQueue
@@ -42,6 +30,20 @@ BaseType_t
 			TD_LINEOBJ *line)
     {
     return xQueueSend(QueueHandle, line, 10);
+    }
+/*___________________________________________________________*/
+void
+    dBase_addTimeStr
+			(TD_LINEOBJ *line)
+    {
+    RTC_TimeTypeDef rtc= {0};
+        RTC_DateTypeDef rtd= {0};
+        // muss immer zusammen gecallt werden.
+        // rtc taktquelle in cube einstellen und funktion prüfen
+        HAL_RTC_GetTime(&hrtc, &rtc, RTC_FORMAT_BIN);
+        HAL_RTC_GetDate(&hrtc, &rtd, RTC_FORMAT_BIN);
+        sprintf(line->timestring,"%d.%d.%d %2d:%2d:%2d", rtd.Date, rtd.Month, rtd.Year, rtc.Hours, rtc.Minutes, rtc.Seconds);
+
     }
 /*___________________________________________________________*/
 void

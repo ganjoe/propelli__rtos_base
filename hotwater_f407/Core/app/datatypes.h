@@ -8,7 +8,7 @@
 #ifndef APP_DATATYPES_H_
 #define APP_DATATYPES_H_
 
-#include "terminal.h"
+
 #include "cmsis_os2.h"
 
 typedef struct
@@ -47,7 +47,8 @@ TD_TERMINAL;
 
 typedef struct
 {
-    char	filename[4];	//rom l999 cmd
+    char	timestring[18];
+    char	filename[8];	//rom l999 cmd
     char	string[TD_LINEOBJ_MAX_SSIZE];	//setdate 10 10 10
     char	header[4];	//tmcu, thot, tcld, fhot, fcld, lvlh, lvlc
     char	postfix[5];	// "%4.3f"
