@@ -30,11 +30,14 @@
 #include "queue.h"
 #include "semphr.h"
 #include "string.h"
+#include "flowmeter.h"
+#include "utils.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 typedef StaticTask_t osStaticThreadDef_t;
 typedef StaticQueue_t osStaticMessageQDef_t;
+typedef StaticTimer_t osStaticTimerDef_t;
 typedef StaticSemaphore_t osStaticSemaphoreDef_t;
 /* USER CODE BEGIN PTD */
 extern void term_lol_sendQueue(osMessageQueueId_t myTxQueueHandle);
@@ -52,7 +55,7 @@ extern void term_lol_sendQueue(osMessageQueueId_t myTxQueueHandle);
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
-
+uint8_t lReceivedValue[1];
 /* USER CODE END Variables */
 /* Definitions for defaultTask */
 osThreadId_t defaultTaskHandle;
@@ -126,9 +129,33 @@ const osThreadAttr_t myLogSdTask_attributes = {
   .cb_size = sizeof(myLogSdTaskControlBlock),
   .priority = (osPriority_t) osPriorityLow,
 };
+/* Definitions for myFlowHotTask */
+osThreadId_t myFlowHotTaskHandle;
+uint32_t myFlowHotTaskBuffer[ 512 ];
+osStaticThreadDef_t myFlowHotTaskControlBlock;
+const osThreadAttr_t myFlowHotTask_attributes = {
+  .name = "myFlowHotTask",
+  .stack_mem = &myFlowHotTaskBuffer[0],
+  .stack_size = sizeof(myFlowHotTaskBuffer),
+  .cb_mem = &myFlowHotTaskControlBlock,
+  .cb_size = sizeof(myFlowHotTaskControlBlock),
+  .priority = (osPriority_t) osPriorityLow,
+};
+/* Definitions for myFlowColdTask */
+osThreadId_t myFlowColdTaskHandle;
+uint32_t myFlowColdTaskBuffer[ 128 ];
+osStaticThreadDef_t myFlowColdTaskControlBlock;
+const osThreadAttr_t myFlowColdTask_attributes = {
+  .name = "myFlowColdTask",
+  .stack_mem = &myFlowColdTaskBuffer[0],
+  .stack_size = sizeof(myFlowColdTaskBuffer),
+  .cb_mem = &myFlowColdTaskControlBlock,
+  .cb_size = sizeof(myFlowColdTaskControlBlock),
+  .priority = (osPriority_t) osPriorityLow,
+};
 /* Definitions for myTxQueue */
 osMessageQueueId_t myTxQueueHandle;
-uint8_t myTxQueueBuffer[ 64 * sizeof( uint8_t ) ];
+uint8_t myTxQueueBuffer[ 1024 * sizeof( uint8_t ) ];
 osStaticMessageQDef_t myTxQueueControlBlock;
 const osMessageQueueAttr_t myTxQueue_attributes = {
   .name = "myTxQueue",
@@ -181,6 +208,14 @@ const osMessageQueueAttr_t myLogLineObjQueue_attributes = {
   .mq_mem = &myLogLineObjQueueBuffer,
   .mq_size = sizeof(myLogLineObjQueueBuffer)
 };
+/* Definitions for myTimerFlowHot */
+osTimerId_t myTimerFlowHotHandle;
+osStaticTimerDef_t myTimerFlowHotControlBlock;
+const osTimerAttr_t myTimerFlowHot_attributes = {
+  .name = "myTimerFlowHot",
+  .cb_mem = &myTimerFlowHotControlBlock,
+  .cb_size = sizeof(myTimerFlowHotControlBlock),
+};
 /* Definitions for myFlagNewString */
 osSemaphoreId_t myFlagNewStringHandle;
 osStaticSemaphoreDef_t myFlagNewStringControlBlock;
@@ -188,6 +223,14 @@ const osSemaphoreAttr_t myFlagNewString_attributes = {
   .name = "myFlagNewString",
   .cb_mem = &myFlagNewStringControlBlock,
   .cb_size = sizeof(myFlagNewStringControlBlock),
+};
+/* Definitions for myFlagNewEdgeFlowHot */
+osSemaphoreId_t myFlagNewEdgeFlowHotHandle;
+osStaticSemaphoreDef_t myFlagNewEdgeFlowHotControlBlock;
+const osSemaphoreAttr_t myFlagNewEdgeFlowHot_attributes = {
+  .name = "myFlagNewEdgeFlowHot",
+  .cb_mem = &myFlagNewEdgeFlowHotControlBlock,
+  .cb_size = sizeof(myFlagNewEdgeFlowHotControlBlock),
 };
 /* Definitions for myCountNewString */
 osSemaphoreId_t myCountNewStringHandle;
@@ -205,6 +248,16 @@ const osSemaphoreAttr_t myCountNewCmd_attributes = {
   .cb_mem = &myCountNewCmdControlBlock,
   .cb_size = sizeof(myCountNewCmdControlBlock),
 };
+/* Definitions for wtfHot */
+osEventFlagsId_t wtfHotHandle;
+const osEventFlagsAttr_t wtfHot_attributes = {
+  .name = "wtfHot"
+};
+/* Definitions for wtfCold */
+osEventFlagsId_t wtfColdHandle;
+const osEventFlagsAttr_t wtfCold_attributes = {
+  .name = "wtfCold"
+};
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
@@ -217,6 +270,9 @@ void StartTxTask(void *argument);
 void StartCmdTask(void *argument);
 void StartLogUartTask(void *argument);
 void StartLogSdTask(void *argument);
+void StartFlowHotTask(void *argument);
+void StartFlowColdTask(void *argument);
+void myCallbackFlowHot(void *argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -317,6 +373,9 @@ void MX_FREERTOS_Init(void) {
   /* creation of myFlagNewString */
   myFlagNewStringHandle = osSemaphoreNew(1, 1, &myFlagNewString_attributes);
 
+  /* creation of myFlagNewEdgeFlowHot */
+  myFlagNewEdgeFlowHotHandle = osSemaphoreNew(1, 1, &myFlagNewEdgeFlowHot_attributes);
+
   /* creation of myCountNewString */
   myCountNewStringHandle = osSemaphoreNew(16, 16, &myCountNewString_attributes);
 
@@ -327,13 +386,17 @@ void MX_FREERTOS_Init(void) {
     /* add semaphores, ... */
   /* USER CODE END RTOS_SEMAPHORES */
 
+  /* Create the timer(s) */
+  /* creation of myTimerFlowHot */
+  myTimerFlowHotHandle = osTimerNew(myCallbackFlowHot, osTimerOnce, NULL, &myTimerFlowHot_attributes);
+
   /* USER CODE BEGIN RTOS_TIMERS */
     /* start timers, add new ones, ... */
   /* USER CODE END RTOS_TIMERS */
 
   /* Create the queue(s) */
   /* creation of myTxQueue */
-  myTxQueueHandle = osMessageQueueNew (64, sizeof(uint8_t), &myTxQueue_attributes);
+  myTxQueueHandle = osMessageQueueNew (1024, sizeof(uint8_t), &myTxQueue_attributes);
 
   /* creation of myRxQueue */
   myRxQueueHandle = osMessageQueueNew (1024, sizeof(uint8_t), &myRxQueue_attributes);
@@ -370,9 +433,22 @@ void MX_FREERTOS_Init(void) {
   /* creation of myLogSdTask */
   myLogSdTaskHandle = osThreadNew(StartLogSdTask, NULL, &myLogSdTask_attributes);
 
+  /* creation of myFlowHotTask */
+  myFlowHotTaskHandle = osThreadNew(StartFlowHotTask, NULL, &myFlowHotTask_attributes);
+
+  /* creation of myFlowColdTask */
+  myFlowColdTaskHandle = osThreadNew(StartFlowColdTask, NULL, &myFlowColdTask_attributes);
+
   /* USER CODE BEGIN RTOS_THREADS */
     /* add threads, ... */
   /* USER CODE END RTOS_THREADS */
+
+  /* Create the event(s) */
+  /* creation of wtfHot */
+  wtfHotHandle = osEventFlagsNew(&wtfHot_attributes);
+
+  /* creation of wtfCold */
+  wtfColdHandle = osEventFlagsNew(&wtfCold_attributes);
 
   /* USER CODE BEGIN RTOS_EVENTS */
     /* add events, ... */
@@ -485,11 +561,24 @@ void StartTxTask(void *argument)
 
     /* Infinite loop */
     for (;;)
-	{
-	term_lol_sendQueue(myTxQueueHandle);
 
+	{
+	//term_lol_sendQueue(myTxQueueHandle);
+	osStatus val;
+
+	//uint8_t lReceivedValue=0;
+
+	val = osMessageQueueGet(myTxQueueHandle, &lReceivedValue, 0, 0);
+
+	switch (val)
+	    {
+	    case osOK:	HAL_UART_Transmit(&huart1, lReceivedValue, 1, 199);
+	    }
+
+	//xQueueReceive(myTxQueueHandle, &lReceivedValue, 0);
 
 	}
+
   /* USER CODE END StartTxTask */
 }
 
@@ -507,17 +596,15 @@ void StartCmdTask(void *argument)
     /* Infinite loop */
     for (;;)
 	{
-	if( xSemaphoreTake( myCountNewCmdHandle, 60000)==pdPASS)
+	if( xSemaphoreTake( myCountNewCmdHandle, osWaitForever)==pdPASS)
 	    {
 	    TD_LINEOBJ line;
 
 	    dbase_LoadQueue(myCmdLineObjQueueHandle, &line);
+
 	    term_qPrintf(myTxQueueHandle, "\r<%s\parse:> %s]", line.filename, line.string);
 	   // term_qPrintf(myTxQueueHandle, "\r<%s/%s> %s [%s]", line.filename, line.header, line.string, line.postfix);
-
 	    term_lol_parse(&line);
-
-
 
 	    }
 	}
@@ -535,9 +622,18 @@ void StartLogUartTask(void *argument)
 {
   /* USER CODE BEGIN StartLogUartTask */
   /* Infinite loop */
+  osStatus_t val;
   for(;;)
   {
-    osDelay(1);
+    TD_LINEOBJ line;
+
+   val = osMessageQueueGet(myLogLineObjQueueHandle, &line, NULL, osWaitForever) ;
+
+   switch(val)
+       {
+   case osOK:
+       term_vprintLineObj(myTxQueueHandle, &line);
+       }
   }
   /* USER CODE END StartLogUartTask */
 }
@@ -558,6 +654,102 @@ void StartLogSdTask(void *argument)
     osDelay(1);
   }
   /* USER CODE END StartLogSdTask */
+}
+
+/* USER CODE BEGIN Header_StartFlowHotTask */
+/**
+* @brief Function implementing the myFlowHotTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartFlowHotTask */
+void StartFlowHotTask(void *argument)
+{
+  /* USER CODE BEGIN StartFlowHotTask */
+  /* Infinite loop */
+
+
+  for(;;)
+  {
+      osStatus_t var;
+
+     if( xSemaphoreTake( myFlagNewEdgeFlowHotHandle, FLOW_TIMEOUT)==pdPASS)
+     	    {
+	    if (flowhot.RevsSession == 0)
+	//	modflag_tickdiff(&mf_systick);
+
+ 	   // myTimerFlowHotHandle = osTimerNew(myTimerFlowHotHandle, osTimerOnce, &flowhot.timeout, NULL);
+
+ 	   // osTimerStart(myTimerFlowHotHandle, flowhot.TicksTimeout);
+ 	    flowhot.RevsSession++;
+
+     	    }
+     else
+ 	    {
+ 	    if ( flowhot.RevsSession == 0)
+ 		{
+
+ 		}
+ 	    else
+ 		{
+ 		TD_LINEOBJ line;
+
+ 		//modflag_tickdiff(&mf_systick);
+
+ 		line.value = (float)flowhot.RevsSession;
+ 		dbase_Make(&line, strdup("flowhot"), 0, strdup("last"), strdup("tick"), 0, 0);
+ 		var = osMessageQueuePut(myLogLineObjQueueHandle, &line, 0, 200);
+
+
+ 		line.value = (float)flowhot.RevsOdo;
+ 		dbase_Make(&line, strdup("flowhot"), 0, strdup("sum"), strdup("tick"), 0, 0);
+ 		var = osMessageQueuePut(myLogLineObjQueueHandle, &line, 0, 200);
+
+
+ 		//line.value = (float)mf_systick.tickdiff;
+ 		//dbase_Make(&line, strdup("flowhot"), 0, strdup("lap"), strdup("ms"), 0, 0);
+ 		//var = osMessageQueuePut(myLogLineObjQueueHandle, &line, 0, 200);
+
+ 		flowhot.RevsOdo += flowhot.RevsSession;
+
+ 		flowhot.RevsSession = 0;
+ 		}
+
+ 	    }
+    	  //
+
+    	  //  dbase_LoadQueue(myCmdLineObjQueueHandle, &line);
+    	  //  term_qPrintf(myTxQueueHandle, "\r<%s\parse:> %s]", line.filename, line.string);
+
+  }
+  /* USER CODE END StartFlowHotTask */
+}
+
+/* USER CODE BEGIN Header_StartFlowColdTask */
+/**
+* @brief Function implementing the myFlowColdTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartFlowColdTask */
+void StartFlowColdTask(void *argument)
+{
+  /* USER CODE BEGIN StartFlowColdTask */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END StartFlowColdTask */
+}
+
+/* myCallbackFlowHot function */
+void myCallbackFlowHot(void *argument)
+{
+  /* USER CODE BEGIN myCallbackFlowHot */
+    //timeoutflag is set
+   argument = (int*)1;
+  /* USER CODE END myCallbackFlowHot */
 }
 
 /* Private application code --------------------------------------------------*/

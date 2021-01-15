@@ -59,8 +59,9 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define SD_CD_Pin GPIO_PIN_2
-#define SD_CD_GPIO_Port GPIOE
+#define flow_hot_Pin GPIO_PIN_2
+#define flow_hot_GPIO_Port GPIOE
+#define flow_hot_EXTI_IRQn EXTI2_IRQn
 #define led_green_Pin GPIO_PIN_6
 #define led_green_GPIO_Port GPIOA
 #define led_red_Pin GPIO_PIN_7

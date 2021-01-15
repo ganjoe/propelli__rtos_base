@@ -20,10 +20,10 @@
 #define CALLBACK_LEN		40
 
 //array size for snprintf
-#define UART_PRINTBUFFER 	32
+#define UART_PRINTBUFFER 	64
 
-//bytes send to uart every taskloop
-#define TX_BYTES_AT_ONCE	64
+//bytes send to uart every taskloop (DMA Transfer Buffer Size)
+#define TX_BYTES_AT_ONCE	16
 
 //HAL USART HANDLE
 #define HUART &huart1
@@ -37,12 +37,12 @@ void term_qPrintf(osMessageQueueId_t QueueHandle, char *fmt, ...);
 BaseType_t dBase_StoreQueue(osMessageQueueId_t QueueHandle, TD_LINEOBJ *line);
 
 void dbase_Make(TD_LINEOBJ *line,
-			char* filename,
+			const char* filename,
 			const char* string,
-			char* header,
-			char* postfix,
-			uint16_t linenr,
-		   	char 	*fmt,
+			const char* header,
+			const char* postfix,
+			uint16_t* linenr,
+			const char 	*fmt,
 			... );
 /*-----------------------------------------------------------*/
 /*-----------------------------------------------------------*/

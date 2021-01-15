@@ -11,6 +11,30 @@
 
 #include "cmsis_os2.h"
 
+/*-------------params----------------*/
+
+#define TD_LINEOBJ_MAX_SSIZE 16
+#define TD_LINEOBJ_MAX_HEADERSIZE 4
+#define TD_LINEOBJ_MAX_POSTFIXSIZE 5
+#define TD_LINEOBJ_MAX_TIMESTRINGSIZE 18
+#define TD_LINEOBJ_MAX_FILENAMESIZE 8
+
+
+/*----------appvars----------------*/
+
+typedef struct
+    {
+    int divisor;
+
+    uint64_t rampcounter, callcount;
+    uint64_t counter, ovf;
+    uint64_t oldtick, systick, newtick, tickdiff;
+    uint64_t duration, repeat;
+    float freq, duty_sp;
+    int flag, flag_delay, flag_reset, init_done;
+    }
+    TD_MODFLAG;
+
 typedef struct
 	{
 	const char *command;
@@ -18,7 +42,7 @@ typedef struct
 	const char *arg_names;
 	void (*cbf)(int argc, const char **argv);
 	}
-TD_TERMINAL_CALLBACKS;
+    TD_TERMINAL_CALLBACKS;
 
 typedef struct
     {
@@ -37,26 +61,28 @@ typedef struct
 
     int flag_newString, flag_newTransmission;
     }
-TD_TERMINAL;
-
-/*
- * Linedata Object for filewrite, lcd, uart
- *
- */
-#define TD_LINEOBJ_MAX_SSIZE 16
+    TD_TERMINAL;
 
 typedef struct
 {
-    char	timestring[18];
-    char	filename[8];	//rom l999 cmd
+    char	timestring[TD_LINEOBJ_MAX_TIMESTRINGSIZE];
+    char	filename[TD_LINEOBJ_MAX_FILENAMESIZE];	//rom l999 cmd
     char	string[TD_LINEOBJ_MAX_SSIZE];	//setdate 10 10 10
-    char	header[4];	//tmcu, thot, tcld, fhot, fcld, lvlh, lvlc
-    char	postfix[5];	// "%4.3f"
+    char	header[TD_LINEOBJ_MAX_HEADERSIZE];	//tmcu, thot, tcld, fhot, fcld, lvlh, lvlc
+    char	postfix[TD_LINEOBJ_MAX_POSTFIXSIZE];	// "%4.3f"
     uint16_t	linenr;
     float 	value;
     osMessageQueueId_t myQueueHandle;
 }
-TD_LINEOBJ;
+    TD_LINEOBJ;
+
+/*----------export----------------*/
+
+void 	 modflag_ovf_callback();
+
+uint64_t modflag_tickdiff(TD_MODFLAG *cnt);
+
+extern TD_MODFLAG mf_systick;
 
 #endif /* APP_DATATYPES_H_ */
 

@@ -108,8 +108,9 @@ int main(void)
   MX_I2C2_Init();
   MX_FATFS_Init();
   /* USER CODE BEGIN 2 */
-
   cmd_init_callbacks();
+  //schnellen tasktimer starten
+  HAL_TIM_Base_Start_IT(&htim6);
   /* USER CODE END 2 */
 
   /* Init scheduler */
