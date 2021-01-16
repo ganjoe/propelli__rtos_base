@@ -145,7 +145,7 @@ void dbase_Make(TD_LINEOBJ *line,const char *filename, const char *string,
 	utils_truncate_number_int(&len, 0, TD_LINEOBJ_MAX_HEADERSIZE);
 	snprintf( pbuffer, len+1, header);
 	 //strcpy( line->header, pbuffer);
-	 strncpy( line->header, pbuffer, len);
+	 strcpy( line->header, pbuffer);
 	}
     //
     /*-----------------------------------------------------------*/
