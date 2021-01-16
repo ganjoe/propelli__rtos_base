@@ -131,7 +131,7 @@ const osThreadAttr_t myLogSdTask_attributes = {
 };
 /* Definitions for myFlowHotTask */
 osThreadId_t myFlowHotTaskHandle;
-uint32_t myFlowHotTaskBuffer[ 512 ];
+uint32_t myFlowHotTaskBuffer[ 1024 ];
 osStaticThreadDef_t myFlowHotTaskControlBlock;
 const osThreadAttr_t myFlowHotTask_attributes = {
   .name = "myFlowHotTask",
@@ -667,53 +667,55 @@ void StartFlowHotTask(void *argument)
 {
   /* USER CODE BEGIN StartFlowHotTask */
   /* Infinite loop */
+ 	   // myTimerFlowHotHandle = osTimerNew(myTimerFlowHotHandle, osTimerOnce, &flowhot.timeout, NULL);
 
+ 	   // osTimerStart(myTimerFlowHotHandle, flowhot.TicksTimeout);
 
   for(;;)
   {
       osStatus_t var;
 
-     if( xSemaphoreTake( myFlagNewEdgeFlowHotHandle, FLOW_TIMEOUT)==pdPASS)
+     if( xSemaphoreTake( myFlagNewEdgeFlowHotHandle, FLOW_TIMEOUT_FLOWMETER)==pdPASS)
      	    {
 	    if (flowhot.RevsSession == 0)
-	//	modflag_tickdiff(&mf_systick);
-
- 	   // myTimerFlowHotHandle = osTimerNew(myTimerFlowHotHandle, osTimerOnce, &flowhot.timeout, NULL);
-
- 	   // osTimerStart(myTimerFlowHotHandle, flowhot.TicksTimeout);
- 	    flowhot.RevsSession++;
+		{
+		modflag_timediff(&mf_systick, NULL);
+		}
+	    flowhot.RevsSession++;
 
      	    }
-     else
+	 else if ( flowhot.RevsSession > 0)
  	    {
- 	    if ( flowhot.RevsSession == 0)
- 		{
+		modflag_timediff(&mf_systick, &flowhot.TimeWtf);
 
- 		}
- 	    else
- 		{
- 		TD_LINEOBJ line;
+ 		TD_LINEOBJ line = {0};
+ 		//volatile int tdsize = sizeof(line);
 
  		//modflag_tickdiff(&mf_systick);
 
  		line.value = (float)flowhot.RevsSession;
- 		dbase_Make(&line, strdup("flowhot"), 0, strdup("last"), strdup("tick"), 0, 0);
+ 		dbase_Make(&line, strdup("flowhot"), 0, strdup("LAST"), strdup("Litr"), 0, 0);
  		var = osMessageQueuePut(myLogLineObjQueueHandle, &line, 0, 200);
 
-
+ 		memset(&line, 0, sizeof(line));
  		line.value = (float)flowhot.RevsOdo;
- 		dbase_Make(&line, strdup("flowhot"), 0, strdup("sum"), strdup("tick"), 0, 0);
+ 		dbase_Make(&line, strdup("flowhot"), 0, strdup("TANK"), strdup("Litr"), 0, 0);
  		var = osMessageQueuePut(myLogLineObjQueueHandle, &line, 0, 200);
 
+ 		memset(&line, 0, sizeof(line));
+ 		line.value = flowhot.TimeWtf;
+ 		dbase_Make(&line, strdup("flowhot"), 0, strdup("FLOW"), strdup("Sek"), 0, 0);
+ 		var = osMessageQueuePut(myLogLineObjQueueHandle, &line, 0, 200);
 
- 		//line.value = (float)mf_systick.tickdiff;
- 		//dbase_Make(&line, strdup("flowhot"), 0, strdup("lap"), strdup("ms"), 0, 0);
- 		//var = osMessageQueuePut(myLogLineObjQueueHandle, &line, 0, 200);
-
+/*
+ 		line.value = (float)mf_systick.tickdiff;
+ 		dbase_Make(&line, strdup("flowhot"), 0, strdup("lap"), strdup("ms"), 0, 0);
+ 		var = osMessageQueuePut(myLogLineObjQueueHandle, &line, 0, 200);
+*/
  		flowhot.RevsOdo += flowhot.RevsSession;
 
  		flowhot.RevsSession = 0;
- 		}
+
 
  	    }
     	  //

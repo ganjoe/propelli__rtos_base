@@ -12,9 +12,10 @@
 #include "cmsis_os2.h"
 
 /*-------------params----------------*/
+#define TD_MODFLAG_TIMERSPEED 80000000	//iterations per second (before prescaler)
 
 #define TD_LINEOBJ_MAX_SSIZE 16
-#define TD_LINEOBJ_MAX_HEADERSIZE 4
+#define TD_LINEOBJ_MAX_HEADERSIZE 8
 #define TD_LINEOBJ_MAX_POSTFIXSIZE 5
 #define TD_LINEOBJ_MAX_TIMESTRINGSIZE 18
 #define TD_LINEOBJ_MAX_FILENAMESIZE 8
@@ -31,6 +32,7 @@ typedef struct
     uint64_t oldtick, systick, newtick, tickdiff;
     uint64_t duration, repeat;
     float freq, duty_sp;
+
     int flag, flag_delay, flag_reset, init_done;
     }
     TD_MODFLAG;
@@ -71,8 +73,8 @@ typedef struct
     char	header[TD_LINEOBJ_MAX_HEADERSIZE];	//tmcu, thot, tcld, fhot, fcld, lvlh, lvlc
     char	postfix[TD_LINEOBJ_MAX_POSTFIXSIZE];	// "%4.3f"
     uint16_t	linenr;
-    float 	value;
-    osMessageQueueId_t myQueueHandle;
+    double 	value;
+
 }
     TD_LINEOBJ;
 
@@ -81,6 +83,7 @@ typedef struct
 void 	 modflag_ovf_callback();
 
 uint64_t modflag_tickdiff(TD_MODFLAG *cnt);
+void modflag_timediff(TD_MODFLAG *cnt, double* timesec);
 
 extern TD_MODFLAG mf_systick;
 

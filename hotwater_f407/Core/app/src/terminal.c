@@ -40,8 +40,7 @@ void dBase_addTimeStr(TD_LINEOBJ *line)
     // rtc taktquelle in cube einstellen und funktion prüfen
     HAL_RTC_GetTime(&hrtc, &rtc, RTC_FORMAT_BIN);
     HAL_RTC_GetDate(&hrtc, &rtd, RTC_FORMAT_BIN);
-    sprintf(line->timestring, "%d.%d.%d %2d:%2d:%2d", rtd.Date, rtd.Month,
-	    rtd.Year, rtc.Hours, rtc.Minutes, rtc.Seconds);
+    sprintf(line->timestring, "%2d.%2d. %2d:%2d:%2d", rtd.Date, rtd.Month,rtc.Hours, rtc.Minutes, rtc.Seconds);
 
     }
 /*___________________________________________________________*/
@@ -113,11 +112,11 @@ void dbase_Make(TD_LINEOBJ *line,const char *filename, const char *string,
 	strcpy(line->string, pbuffer);
 	va_end(argp);
 	}
-    // printing float value with default format
+    // printing double value with default format
     /*-----------------------------------------------------------*/
     if ((fmt == 0) & (string == 0))
 	{
-	snprintf(line->string, UART_PRINTBUFFER, "%4.0f", line->value);
+	snprintf(line->string, UART_PRINTBUFFER, "%.4g", line->value);
 	}
     //
     /*-----------------------------------------------------------*/
@@ -145,7 +144,8 @@ void dbase_Make(TD_LINEOBJ *line,const char *filename, const char *string,
 	len = strlen(header);
 	utils_truncate_number_int(&len, 0, TD_LINEOBJ_MAX_HEADERSIZE);
 	snprintf( pbuffer, len+1, header);
-	 strcpy( line->header, pbuffer);
+	 //strcpy( line->header, pbuffer);
+	 strncpy( line->header, pbuffer, len);
 	}
     //
     /*-----------------------------------------------------------*/

@@ -16,6 +16,8 @@
 extern osSemaphoreId_t myFlagNewEdgeFlowHotHandle;
 extern osTimerId_t myTimerFlowHotHandle;
 
+
+
 void HAL_GPIO_EXTI_Callback(uint16_t Pin)
     {
     osSemaphoreRelease(myFlagNewEdgeFlowHotHandle);
