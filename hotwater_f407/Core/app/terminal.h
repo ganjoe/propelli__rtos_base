@@ -29,6 +29,8 @@
 #define HUART &huart1
 /*-----------------------------------------------------------*/
 /*-----------------------------------------------------------*/
+void dbase_StoreSD(TD_LINEOBJ *line);
+
 void dbase_LoadQueue ( osMessageQueueId_t QueueHandle, TD_LINEOBJ *line);
 
 //wrapper for vsnprintf. prints to queue

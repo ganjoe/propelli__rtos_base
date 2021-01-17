@@ -20,6 +20,8 @@ extern osMessageQueueId_t myTxQueueHandle;
 
 extern osSemaphoreId_t myFlagNewStringHandle;
 
+extern osMessageQueueId_t mySDwriteBufferLineObjQueueHandle;
+
 /*----------private local code----------------*/
 BaseType_t dBase_StoreQueue(osMessageQueueId_t QueueHandle, TD_LINEOBJ *line)
     {
@@ -46,7 +48,6 @@ void dBase_addTimeStr(TD_LINEOBJ *line)
 /*___________________________________________________________*/
 void dbase_LoadQueue(osMessageQueueId_t QueueHandle, TD_LINEOBJ *line)
     {
-
     xQueueReceive(QueueHandle, line, ( portTickType ) 10);
     }
 /*-----------------------------------------------------------*/
@@ -183,6 +184,10 @@ void term_vprintLineObj(osMessageQueueId_t QueueHandle, TD_LINEOBJ *line)
 			    line->header,
 			    line->string,
 			    line->postfix);
+    }
+void dbase_StoreSD(TD_LINEOBJ *line)
+    {
+    //osMessageQueuePut(mySDwriteBufferLineObjQueueHandle, line, 0, osWaitForever);
     }
 /*-----------------------------------------------------------*/
 void term_lol_sendQueue(osMessageQueueId_t QueueHandle)

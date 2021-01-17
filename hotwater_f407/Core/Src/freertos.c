@@ -208,6 +208,17 @@ const osMessageQueueAttr_t myLogLineObjQueue_attributes = {
   .mq_mem = &myLogLineObjQueueBuffer,
   .mq_size = sizeof(myLogLineObjQueueBuffer)
 };
+/* Definitions for mySDwriteBufferLineObjQueue */
+osMessageQueueId_t mySDwriteBufferLineObjQueueHandle;
+uint8_t mySDwriteBufferLineObjQueueBuffer[ 8 * 64 ];
+osStaticMessageQDef_t mySDwriteBufferLineObjQueueControlBlock;
+const osMessageQueueAttr_t mySDwriteBufferLineObjQueue_attributes = {
+  .name = "mySDwriteBufferLineObjQueue",
+  .cb_mem = &mySDwriteBufferLineObjQueueControlBlock,
+  .cb_size = sizeof(mySDwriteBufferLineObjQueueControlBlock),
+  .mq_mem = &mySDwriteBufferLineObjQueueBuffer,
+  .mq_size = sizeof(mySDwriteBufferLineObjQueueBuffer)
+};
 /* Definitions for myTimerFlowHot */
 osTimerId_t myTimerFlowHotHandle;
 osStaticTimerDef_t myTimerFlowHotControlBlock;
@@ -409,6 +420,9 @@ void MX_FREERTOS_Init(void) {
 
   /* creation of myLogLineObjQueue */
   myLogLineObjQueueHandle = osMessageQueueNew (16, 64, &myLogLineObjQueue_attributes);
+
+  /* creation of mySDwriteBufferLineObjQueue */
+  mySDwriteBufferLineObjQueueHandle = osMessageQueueNew (8, 64, &mySDwriteBufferLineObjQueue_attributes);
 
   /* USER CODE BEGIN RTOS_QUEUES */
     /* add queues, ... */
@@ -625,7 +639,7 @@ void StartLogUartTask(void *argument)
   osStatus_t val;
   for(;;)
   {
-    TD_LINEOBJ line;
+    TD_LINEOBJ line = {0};
 
    val = osMessageQueueGet(myLogLineObjQueueHandle, &line, NULL, osWaitForever) ;
 
@@ -633,6 +647,7 @@ void StartLogUartTask(void *argument)
        {
    case osOK:
        term_vprintLineObj(myTxQueueHandle, &line);
+       dbase_StoreSD( &line);
        }
   }
   /* USER CODE END StartLogUartTask */
@@ -700,7 +715,7 @@ void StartFlowHotTask(void *argument)
  		memset(&line, 0, sizeof(line));
  		line.value = (float)flowhot.RevsOdo;
  		dbase_Make(&line, strdup("flowhot"), 0, strdup("TANK"), strdup("Litr"), 0, 0);
- 		var = osMessageQueuePut(myLogLineObjQueueHandle, &line, 0, 200);
+ 		var = osMessageQueuePut(mySDwriteBufferLineObjQueueHandle, &line, 0, 200);
 
  		memset(&line, 0, sizeof(line));
  		line.value = flowhot.TimeWtf;
