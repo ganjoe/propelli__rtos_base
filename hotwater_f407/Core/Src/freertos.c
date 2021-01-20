@@ -131,7 +131,7 @@ const osThreadAttr_t myLogSdTask_attributes = {
 };
 /* Definitions for myFlowHotTask */
 osThreadId_t myFlowHotTaskHandle;
-uint32_t myFlowHotTaskBuffer[ 1024 ];
+uint32_t myFlowHotTaskBuffer[ 2048 ];
 osStaticThreadDef_t myFlowHotTaskControlBlock;
 const osThreadAttr_t myFlowHotTask_attributes = {
   .name = "myFlowHotTask",
